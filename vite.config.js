@@ -7,5 +7,4 @@ export default defineConfig({
   plugins: [
     preact(), 
     tailwindcss()],
-    base: '/Inter_inventario',
 })
