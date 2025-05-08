@@ -464,9 +464,14 @@ export default function LiquorInventoryCalculator() {
 
               <select value={bottleKey} onChange={(e) => setBottleKey(e.target.value)} className="border rounded px-3 py-2">
                 <option value="">Selecciona Botella</option>
-                {liquorType && allBottleData[liquorType] && Object.keys(allBottleData[liquorType]).map(key => (
-                  <option key={key} value={key}>{allBottleData[liquorType][key].label}</option>
-                ))}
+                {liquorType && allBottleData[liquorType] && Object.keys(allBottleData[liquorType]).map(key => {
+                  const bottleDetails = allBottleData[liquorType][key];
+                  return (
+                    <option key={key} value={key}>
+                      {bottleDetails.label} ({bottleDetails.volume}ml)
+                    </option>
+                  );
+                })}
               </select>
 
               <input
