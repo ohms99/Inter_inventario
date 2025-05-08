@@ -477,6 +477,12 @@ export default function LiquorInventoryCalculator() {
                 className="border rounded px-3 py-2"
               />
             </div>
+            {/* Display Empty and Full Weight if bottle is selected */}
+            {bottleKey && bottle && typeof bottle.emptyWeight === 'number' && typeof bottle.fullWeight === 'number' && (
+              <div className="mt-2 text-xs text-center text-gray-600 bg-gray-100 p-2 rounded-md">
+                <p>Peso Botella Vacía: <strong>{bottle.emptyWeight}g</strong> | Peso Botella Llena: <strong>{bottle.fullWeight}g</strong></p>
+              </div>
+            )}
             {error && <p className="text-red-500 mt-2 text-sm font-medium">{error}</p>}
 
             {preview && (
