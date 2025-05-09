@@ -93,10 +93,10 @@ export default function BeerTracker() {
     }
     const endDate = new Date().toISOString();
     const aggregatedItems = currentBeerInventory.reduce((acc, item) => {
-      if (acc[item.label]) {
-        acc[item.label].count += item.count;
+      if (acc[item.key]) {
+        acc[item.key].count += item.count;
       } else {
-        acc[item.label] = { ...item };
+        acc[item.key] = { ...item };
       }
       return acc;
     }, {});
