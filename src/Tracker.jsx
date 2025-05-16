@@ -54,9 +54,10 @@ export default function LiquorInventoryCalculator() {
   const [lastInventorySummaryStats, setLastInventorySummaryStats] = useState({});
 
   const handleAddNewBottle = () => {
-    const finalNewBottleType = newBottleType === '__NEW_TYPE__' ? customNewBottleType.trim() : newBottleType;
+    const finalNewBottleType = newBottleType === '__NEW_TYPE__' ? customNewBottleType.trim().toLowerCase() : newBottleType.toLowerCase();
+    const trimmedNewBottleName = newBottleName.trim();
 
-    if (!finalNewBottleType || !newBottleName || !newBottleVolume || !newBottleEmptyWeight || !newBottleFullWeight) {
+    if (!finalNewBottleType || !trimmedNewBottleName || !newBottleVolume || !newBottleEmptyWeight || !newBottleFullWeight) {
       setError('Por favor, complete todos los campos para la nueva botella, incluyendo el peso llena.');
       return;
     }
@@ -65,21 +66,32 @@ export default function LiquorInventoryCalculator() {
         return;
     }
 
+    const newBottleKey = trimmedNewBottleName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (!newBottleKey) {
+        setError('El nombre de la botella resulta en una clave inválida. Use caracteres alfanuméricos y espacios.');
+        return;
+    }
+
     const newBottleData = {
-      label: newBottleName,
+      label: trimmedNewBottleName,
       volume: parseInt(newBottleVolume, 10),
       emptyWeight: parseInt(newBottleEmptyWeight, 10),
       fullWeight: parseInt(newBottleFullWeight, 10),
     };
 
     setAllBottleData(prevData => {
-      const updatedType = {
-        ...(prevData[finalNewBottleType] || {}),
-        [finalNewBottleType]: newBottleData,
-      };
+      const bottlesForThisType = prevData[finalNewBottleType] ? { ...prevData[finalNewBottleType] } : {};
+
+      if (bottlesForThisType[newBottleKey]) {
+        setError(`Error: La botella "${trimmedNewBottleName}" ya existe como "${newBottleKey}" bajo el tipo "${finalNewBottleType}". Por favor use un nombre único o edite la existente.`);
+        return prevData; // Return previous state to avoid change if key exists
+      }
+
+      bottlesForThisType[newBottleKey] = newBottleData;
+
       const newData = {
         ...prevData,
-        [finalNewBottleType]: updatedType,
+        [finalNewBottleType]: bottlesForThisType,
       };
       localStorage.setItem('allBottleData', JSON.stringify(newData));
       return newData;
