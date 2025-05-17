@@ -278,6 +278,7 @@ export default function LiquorInventoryCalculator() {
       percentage: percentage.toFixed(1),
       remainingFlOz: remainingFlOz.toFixed(2),
       servings,
+      currentWeight_g: current,
     };
 
     setPreview(previewData);
@@ -285,7 +286,7 @@ export default function LiquorInventoryCalculator() {
 
   const addToInventory = () => {
     if (preview) {
-      setInventoryList([...inventoryList, preview]);
+      setInventoryList([...inventoryList, { ...preview }]);
       setPreview(null);
       setCurrentWeight('');
     }
@@ -580,24 +581,35 @@ export default function LiquorInventoryCalculator() {
                             <th className="border px-2 py-1">Volumen</th>
                             <th className="border px-2 py-1">% Restante</th>
                             <th className="border px-2 py-1">Oz Restante</th>
+                            <th className="border px-2 py-1">Peso Actual (g)</th>
                             <th className="border px-2 py-1">Bebidas</th>
                             <th className="border px-2 py-1">Cambio (oz)</th>
+                            <th className="border px-2 py-1">Cambio (g)</th>
                           </tr>
                         </thead>
                         <tbody>
                           {Object.entries(session.items).map(([itemKey, item], i) => {
                             let cambioOz = "N/A";
+                            let cambioG = "N/A";
                             if (index > 0) { // Ensure there is a previous session to compare against
                               const previousSession = inventoryHistory[index - 1];
                               const previousItem = previousSession.items[itemKey];
                               if (previousItem) {
-                                const change = parseFloat(previousItem.remainingFlOz) - parseFloat(item.remainingFlOz);
-                                cambioOz = change.toFixed(2) + " oz";
+                                const ozChange = parseFloat(previousItem.remainingFlOz) - parseFloat(item.remainingFlOz);
+                                cambioOz = ozChange.toFixed(2) + " oz";
+                                if (previousItem.currentWeight_g !== undefined && item.currentWeight_g !== undefined) {
+                                  const gChange = parseFloat(previousItem.currentWeight_g) - parseFloat(item.currentWeight_g);
+                                  cambioG = gChange.toFixed(2) + " g";
+                                } else {
+                                  cambioG = "Dato Viejo"; // Old data might not have currentWeight_g
+                                }
                               } else {
-                                cambioOz = "Nuevo"; // Item wasn't in the previous inventory
+                                cambioOz = "Nuevo"; 
+                                cambioG = "Nuevo";
                               }
                             } else {
-                              cambioOz = "-"; // First inventory session, no previous data
+                              cambioOz = "-"; 
+                              cambioG = "-";
                             }
                             return (
                               <tr key={i}>
@@ -606,8 +618,10 @@ export default function LiquorInventoryCalculator() {
                                 <td className="border px-2 py-1">{item.volume} ml</td>
                                 <td className="border px-2 py-1">{item.percentage}%</td>
                                 <td className="border px-2 py-1">{item.remainingFlOz} oz</td>
+                                <td className="border px-2 py-1">{item.currentWeight_g !== undefined ? item.currentWeight_g + " g" : "N/A"}</td>
                                 <td className="border px-2 py-1">{item.servings}</td>
                                 <td className="border px-2 py-1">{cambioOz}</td>
+                                <td className="border px-2 py-1">{cambioG}</td>
                               </tr>
                             );
                           })}
