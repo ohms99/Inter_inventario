@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
 
 const bottleData = {
   tequila: {
@@ -150,49 +151,27 @@ export default function LiquorInventoryCalculator() {
       }
     }
 
-    const savedBottleDataString = localStorage.getItem('allBottleData');
-    if (savedBottleDataString) {
-      try {
-        const loadedData = JSON.parse(savedBottleDataString);
-        // Create a mutable copy for processing to avoid issues with frozen objects or direct state mutation
-        const processedData = JSON.parse(JSON.stringify(loadedData)); 
+    // Load allBottleData from Strapi instead of localStorage
+    // async function fetchBottleData() {
+    //   const dataFromApi = await getLiquorBottleDefinitions();
+    //   if (Object.keys(dataFromApi).length > 0) {
+    //     setAllBottleData(dataFromApi);
+    //     // Optionally, you could still save this to localStorage as a cache/fallback
+    //     // localStorage.setItem('allBottleData', JSON.stringify(dataFromApi));
+    //   } else {
+    //     // Fallback to initial bottleData if API fails or returns empty
+    //     // or if you want to ensure a default set is always there if API is empty
+    //     console.warn("API returned no bottle data, or an error occurred. Using initial hardcoded bottleData.");
+    //     setAllBottleData(bottleData);
+    //     // localStorage.setItem('allBottleData', JSON.stringify(bottleData)); // Save initial if you want it in LS
+    //   }
+    // }
 
-        for (const type in processedData) {
-          // Check if the type exists in the initial bottleData for reference
-          if (bottleData[type]) { 
-            for (const bottleKey in processedData[type]) {
-              const currentBottle = processedData[type][bottleKey];
-              const initialBottleMatch = bottleData[type][bottleKey];
+    // fetchBottleData();
 
-              if (initialBottleMatch) { // If this specific bottle is a default/initial bottle
-                // If critical data like fullWeight, emptyWeight, volume, or label is missing or not a number from the stored version,
-                // restore it from the up-to-date initialBottleMatch.
-                let restoreNeeded = false;
-                if (typeof currentBottle.fullWeight !== 'number' && typeof initialBottleMatch.fullWeight === 'number') restoreNeeded = true;
-                if (typeof currentBottle.emptyWeight !== 'number' && typeof initialBottleMatch.emptyWeight === 'number') restoreNeeded = true;
-                if (typeof currentBottle.volume !== 'number' && typeof initialBottleMatch.volume === 'number') restoreNeeded = true;
-                if (typeof currentBottle.label !== 'string' && typeof initialBottleMatch.label === 'string') restoreNeeded = true;
-                
-                if (restoreNeeded) {
-                  console.warn(`Bottle ${type} - ${bottleKey} from localStorage is missing or has invalid critical fields. Restoring from defaults.`);
-                  processedData[type][bottleKey] = { ...initialBottleMatch }; // Overwrite with the complete default
-                }
-              }
-              // For custom bottles (not in initialBottleMatch) that might be missing fullWeight,
-              // calculateRemaining will correctly show an error if they are selected, as their data is incomplete.
-            }
-          }
-        }
-        setAllBottleData(processedData);
-      } catch (e) {
-        console.error("Failed to parse or process allBottleData from localStorage:", e);
-        // Fallback to initial bottleData if localStorage is corrupted
-        setAllBottleData(bottleData);
-      }
-    } else {
-      // If no data in localStorage, initialize with default bottleData
-      setAllBottleData(bottleData); 
-    }
+    // The old localStorage loading logic for allBottleData is now replaced by the fetchBottleData call.
+    // We keep the inventoryHistory loading from localStorage for now.
+
   }, []); // This effect now also validates and patches last summary stats on initial load
 
   // Effect to update summary stats when a new inventory is saved (inventoryHistory changes)
@@ -602,19 +581,36 @@ export default function LiquorInventoryCalculator() {
                             <th className="border px-2 py-1">% Restante</th>
                             <th className="border px-2 py-1">Oz Restante</th>
                             <th className="border px-2 py-1">Bebidas</th>
+                            <th className="border px-2 py-1">Cambio (oz)</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.values(session.items).map((item, i) => (
-                            <tr key={i}>
-                              <td className="border px-2 py-1">{item.type}</td>
-                              <td className="border px-2 py-1">{item.name}</td>
-                              <td className="border px-2 py-1">{item.volume} ml</td>
-                              <td className="border px-2 py-1">{item.percentage}%</td>
-                              <td className="border px-2 py-1">{item.remainingFlOz} oz</td>
-                              <td className="border px-2 py-1">{item.servings}</td>
-                            </tr>
-                          ))}
+                          {Object.entries(session.items).map(([itemKey, item], i) => {
+                            let cambioOz = "N/A";
+                            if (index > 0) { // Ensure there is a previous session to compare against
+                              const previousSession = inventoryHistory[index - 1];
+                              const previousItem = previousSession.items[itemKey];
+                              if (previousItem) {
+                                const change = parseFloat(previousItem.remainingFlOz) - parseFloat(item.remainingFlOz);
+                                cambioOz = change.toFixed(2) + " oz";
+                              } else {
+                                cambioOz = "Nuevo"; // Item wasn't in the previous inventory
+                              }
+                            } else {
+                              cambioOz = "-"; // First inventory session, no previous data
+                            }
+                            return (
+                              <tr key={i}>
+                                <td className="border px-2 py-1">{item.type}</td>
+                                <td className="border px-2 py-1">{item.name}</td>
+                                <td className="border px-2 py-1">{item.volume} ml</td>
+                                <td className="border px-2 py-1">{item.percentage}%</td>
+                                <td className="border px-2 py-1">{item.remainingFlOz} oz</td>
+                                <td className="border px-2 py-1">{item.servings}</td>
+                                <td className="border px-2 py-1">{cambioOz}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                       <div className="text-sm text-gray-600">

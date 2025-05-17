@@ -349,16 +349,33 @@ export default function BeerTracker() {
                           <th className="border px-2 py-1">Nombre Cerveza</th>
                           <th className="border px-2 py-1">Categoría</th>
                           <th className="border px-2 py-1">Cantidad Contada</th>
+                          <th className="border px-2 py-1">Cambio (Unidades)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.values(session.items).map((item, i) => (
-                          <tr key={i}>
-                            <td className="border px-2 py-1">{item.label}</td>
-                            <td className="border px-2 py-1">{item.category}</td>
-                            <td className="border px-2 py-1">{item.count}</td>
-                          </tr>
-                        ))}
+                        {Object.entries(session.items).map(([itemKey, item], i) => {
+                          let cambioUnits = "N/A";
+                          if (index > 0) {
+                            const previousSession = beerInventoryHistory[index - 1];
+                            const previousItem = previousSession.items[itemKey];
+                            if (previousItem) {
+                              const change = parseInt(previousItem.count) - parseInt(item.count);
+                              cambioUnits = change.toString();
+                            } else {
+                              cambioUnits = "Nuevo";
+                            }
+                          } else {
+                            cambioUnits = "-";
+                          }
+                          return (
+                            <tr key={i}>
+                              <td className="border px-2 py-1">{item.label}</td>
+                              <td className="border px-2 py-1">{item.category}</td>
+                              <td className="border px-2 py-1">{item.count}</td>
+                              <td className="border px-2 py-1">{cambioUnits}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                     <div className="text-xs text-gray-500">
