@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { loadStoredBottleCatalog } from './bottleCatalog';
 
 const bottleData = {
   tequila: {
@@ -112,65 +112,56 @@ export default function LiquorInventoryCalculator() {
   const bottle = allBottleData[liquorType]?.[bottleKey] || {};
 
   useEffect(() => {
-    const savedHistory = localStorage.getItem('inventoryHistory');
-    if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory);
-      setInventoryHistory(parsedHistory);
-
-      // Calculate stats for the last inventory session for the summary display
-      if (parsedHistory.length > 0) {
-        const lastSession = parsedHistory[parsedHistory.length - 1];
-        const stats = {};
-        if (lastSession && lastSession.items) {
-          Object.values(lastSession.items).forEach(item => {
-            const type = item.type;
-            if (!stats[type]) {
-              stats[type] = {
-                totalServings: 0,
-                totalPercentage: 0,
-                bottleCount: 0,
-              };
-            }
-            stats[type].totalServings += item.servings;
-            // Ensure item.percentage is a number; it might be a string from storage/calculation
-            stats[type].totalPercentage += parseFloat(item.percentage) || 0;
-            stats[type].bottleCount += 1;
-          });
-
-          Object.keys(stats).forEach(type => {
-            if (stats[type].bottleCount > 0) {
-              stats[type].avgPercent = (stats[type].totalPercentage / stats[type].bottleCount).toFixed(1);
-            } else {
-              stats[type].avgPercent = '0';
-            }
-          });
+    try {
+      const savedHistory = localStorage.getItem('inventoryHistory');
+      if (savedHistory) {
+        const parsedHistory = JSON.parse(savedHistory);
+        if (!Array.isArray(parsedHistory)) {
+          throw new Error('inventoryHistory is not an array');
         }
-        setLastInventorySummaryStats(stats);
-      } else {
-        setLastInventorySummaryStats({}); // Clear stats if no history
+        setInventoryHistory(parsedHistory);
+
+        // Calculate stats for the last inventory session for the summary display
+        if (parsedHistory.length > 0) {
+          const lastSession = parsedHistory[parsedHistory.length - 1];
+          const stats = {};
+          if (lastSession && lastSession.items) {
+            Object.values(lastSession.items).forEach(item => {
+              const type = item.type;
+              if (!stats[type]) {
+                stats[type] = {
+                  totalServings: 0,
+                  totalPercentage: 0,
+                  bottleCount: 0,
+                };
+              }
+              stats[type].totalServings += item.servings;
+              // Ensure item.percentage is a number; it might be a string from storage/calculation
+              stats[type].totalPercentage += parseFloat(item.percentage) || 0;
+              stats[type].bottleCount += 1;
+            });
+
+            Object.keys(stats).forEach(type => {
+              if (stats[type].bottleCount > 0) {
+                stats[type].avgPercent = (stats[type].totalPercentage / stats[type].bottleCount).toFixed(1);
+              } else {
+                stats[type].avgPercent = '0';
+              }
+            });
+          }
+          setLastInventorySummaryStats(stats);
+        } else {
+          setLastInventorySummaryStats({}); // Clear stats if no history
+        }
       }
+    } catch (e) {
+      console.error('Failed to parse inventoryHistory from localStorage:', e);
     }
 
-    // Load allBottleData from Strapi instead of localStorage
-    // async function fetchBottleData() {
-    //   const dataFromApi = await getLiquorBottleDefinitions();
-    //   if (Object.keys(dataFromApi).length > 0) {
-    //     setAllBottleData(dataFromApi);
-    //     // Optionally, you could still save this to localStorage as a cache/fallback
-    //     // localStorage.setItem('allBottleData', JSON.stringify(dataFromApi));
-    //   } else {
-    //     // Fallback to initial bottleData if API fails or returns empty
-    //     // or if you want to ensure a default set is always there if API is empty
-    //     console.warn("API returned no bottle data, or an error occurred. Using initial hardcoded bottleData.");
-    //     setAllBottleData(bottleData);
-    //     // localStorage.setItem('allBottleData', JSON.stringify(bottleData)); // Save initial if you want it in LS
-    //   }
-    // }
-
-    // fetchBottleData();
-
-    // The old localStorage loading logic for allBottleData is now replaced by the fetchBottleData call.
-    // We keep the inventoryHistory loading from localStorage for now.
+    // Custom bottles are written to localStorage when added. Reload them here;
+    // otherwise the in-memory defaults replace the saved catalog on the next add.
+    const savedBottleDataString = localStorage.getItem('allBottleData');
+    setAllBottleData(loadStoredBottleCatalog(savedBottleDataString, bottleData));
 
   }, []); // This effect now also validates and patches last summary stats on initial load
 
