@@ -3,6 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cartesia
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ShoppingCart, TrendingDown, HelpCircle, Beer } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
+import { buildBeerPurchasePredictions } from './beerPurchasePredictions';
 
 // Initial bottle data - needed if allBottleData isn't in localStorage or for reference
 const initialBottleDataReference = {
@@ -217,84 +218,7 @@ export default function Dashboard() {
 
   // useEffect for Beer Purchase Predictions
   useEffect(() => {
-    if (beerInventoryHistory.length < 2) {
-      setBeerPurchasePredictions([]);
-      return;
-    }
-
-    const beerItemHistories = {}; // Key: beer.label, Value: array of {date, count, name, category}
-
-    beerInventoryHistory.forEach(session => {
-      const sessionDate = parseISO(session.endDate);
-      Object.values(session.items).forEach(item => {
-        const itemKey = item.label; // Use label as the key for beer aggregation
-        if (!beerItemHistories[itemKey]) {
-          beerItemHistories[itemKey] = [];
-        }
-        beerItemHistories[itemKey].push({
-          date: sessionDate,
-          count: parseInt(item.count, 10),
-          name: item.label,
-          category: item.category,
-        });
-      });
-    });
-
-    const beerPredictions = [];
-    for (const itemKey in beerItemHistories) {
-      const history = beerItemHistories[itemKey].sort((a, b) => a.date - b.date);
-      if (history.length < 2) continue;
-
-      let totalUnitsConsumed = 0;
-      let totalDays = 0;
-      let periodsCount = 0;
-
-      for (let i = 1; i < history.length; i++) {
-        const prevEntry = history[i - 1];
-        const currentEntry = history[i];
-
-        const unitsChange = prevEntry.count - currentEntry.count;
-        const daysChange = differenceInDays(currentEntry.date, prevEntry.date);
-
-        if (daysChange > 0 && unitsChange > 0) { // Consumed and time passed
-          totalUnitsConsumed += unitsChange;
-          totalDays += daysChange;
-          periodsCount++;
-        }
-      }
-
-      const latestEntry = history[history.length - 1];
-      if (periodsCount > 0) {
-        const avgDailyUnitConsumption = totalUnitsConsumed / totalDays;
-        const daysLeft = latestEntry.count / avgDailyUnitConsumption;
-        beerPredictions.push({
-          name: latestEntry.name,
-          category: latestEntry.category,
-          latestCount: latestEntry.count,
-          avgDailyUnitConsumption: parseFloat(avgDailyUnitConsumption.toFixed(2)),
-          daysLeft: parseFloat(daysLeft.toFixed(1)),
-        });
-      } else {
-        beerPredictions.push({
-          name: latestEntry.name,
-          category: latestEntry.category,
-          latestCount: latestEntry.count,
-          avgDailyUnitConsumption: 0,
-          daysLeft: Infinity,
-          note: "No consumption data or stock stable/increased.",
-        });
-      }
-    }
-
-    beerPredictions.sort((a, b) => {
-      if (a.daysLeft === Infinity && b.daysLeft !== Infinity) return 1;
-      if (a.daysLeft !== Infinity && b.daysLeft === Infinity) return -1;
-      if (a.daysLeft === Infinity && b.daysLeft === Infinity) return a.name.localeCompare(b.name);
-      if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
-      return a.name.localeCompare(b.name);
-    });
-
-    setBeerPurchasePredictions(beerPredictions);
+    setBeerPurchasePredictions(buildBeerPurchasePredictions(beerInventoryHistory));
   }, [beerInventoryHistory]);
 
   // useEffect for Item-Specific Graph Data
