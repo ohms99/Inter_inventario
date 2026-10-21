@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { aggregateLiquorItems } from './aggregateLiquorItems';
 
 const bottleData = {
   tequila: {
@@ -219,15 +220,7 @@ export default function LiquorInventoryCalculator() {
     const newSession = {
       startDate,
       endDate,
-      items: inventoryList.reduce((acc, item) => {
-        const key = `${item.type}_${item.name}`;
-        if (!acc[key]) acc[key] = { ...item };
-        else {
-          acc[key].remainingFlOz = (parseFloat(acc[key].remainingFlOz) + parseFloat(item.remainingFlOz)).toFixed(2);
-          acc[key].servings += item.servings;
-        }
-        return acc;
-      }, {}),
+      items: aggregateLiquorItems(inventoryList),
     };
     const updatedHistory = [...inventoryHistory, newSession];
     setInventoryHistory(updatedHistory);
