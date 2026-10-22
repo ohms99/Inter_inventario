@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ShoppingCart, TrendingDown, HelpCircle, Beer } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { parseISO } from 'date-fns';
+import { consumedOverDays } from './consumedOverDays';
 
 // Initial bottle data - needed if allBottleData isn't in localStorage or for reference
 const initialBottleDataReference = {
@@ -157,23 +158,9 @@ export default function Dashboard() {
       const history = itemHistories[itemKey].sort((a, b) => a.date - b.date);
       if (history.length < 2) continue; // Need at least two points for a rate
 
-      let totalOzConsumed = 0;
-      let totalDays = 0;
-      let periodsCount = 0;
-
-      for (let i = 1; i < history.length; i++) {
-        const prevEntry = history[i-1];
-        const currentEntry = history[i];
-        
-        const ozChange = prevEntry.oz - currentEntry.oz;
-        const daysChange = differenceInDays(currentEntry.date, prevEntry.date);
-
-        if (daysChange > 0 && ozChange > 0) { // Consumed and time passed
-          totalOzConsumed += ozChange;
-          totalDays += daysChange;
-          periodsCount++;
-        }
-      }
+      const { totalConsumed: totalOzConsumed, totalDays, periodsCount } = consumedOverDays(
+        history.map((entry) => ({ date: entry.date, amount: entry.oz }))
+      );
 
       const latestEntry = history[history.length - 1];
       if (periodsCount > 0) {
@@ -245,23 +232,9 @@ export default function Dashboard() {
       const history = beerItemHistories[itemKey].sort((a, b) => a.date - b.date);
       if (history.length < 2) continue;
 
-      let totalUnitsConsumed = 0;
-      let totalDays = 0;
-      let periodsCount = 0;
-
-      for (let i = 1; i < history.length; i++) {
-        const prevEntry = history[i - 1];
-        const currentEntry = history[i];
-
-        const unitsChange = prevEntry.count - currentEntry.count;
-        const daysChange = differenceInDays(currentEntry.date, prevEntry.date);
-
-        if (daysChange > 0 && unitsChange > 0) { // Consumed and time passed
-          totalUnitsConsumed += unitsChange;
-          totalDays += daysChange;
-          periodsCount++;
-        }
-      }
+      const { totalConsumed: totalUnitsConsumed, totalDays, periodsCount } = consumedOverDays(
+        history.map((entry) => ({ date: entry.date, amount: entry.count }))
+      );
 
       const latestEntry = history[history.length - 1];
       if (periodsCount > 0) {
