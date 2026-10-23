@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Beer, CheckCircle2, Trash2, PlayCircle, StopCircle, Download, PlusCircle, PackagePlus, PackageMinus, PackageSearch, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { parseBeerCount } from './parseBeerCount';
 
 const INITIAL_BEER_CATALOG = {
   'miller_high_life_media': { label: 'Miller High Life', category: 'Media' },
@@ -145,9 +146,9 @@ export default function BeerTracker() {
       setError("Please select a beer.");
       return;
     }
-    const count = parseInt(currentBeerCount, 10);
-    if (isNaN(count) || count <= 0) {
-      setError("Please enter a valid count (greater than 0).");
+    const count = parseBeerCount(currentBeerCount);
+    if (count == null) {
+      setError("Please enter a valid count (0 or more).");
       return;
     }
     const beerDetails = beerCatalog[selectedBeerKey];
@@ -277,7 +278,7 @@ export default function BeerTracker() {
               value={currentBeerCount}
               onChange={(e) => setCurrentBeerCount(e.target.value)}
               className="border rounded px-3 py-2 h-10"
-              min="1"
+              min="0"
             />
             <button onClick={handleAddBeerToCurrentInventory} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded flex items-center justify-center gap-2 h-10">
               <PlusCircle /> Agregar al Inventario
