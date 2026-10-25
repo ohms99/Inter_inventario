@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { planAddLiquorBottle } from './catalogIdentity';
 
 const bottleData = {
   tequila: {
@@ -67,10 +68,13 @@ export default function LiquorInventoryCalculator() {
         return;
     }
 
-    const newBottleKey = trimmedNewBottleName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    if (!newBottleKey) {
-        setError('El nombre de la botella resulta en una clave inválida. Use caracteres alfanuméricos y espacios.');
-        return;
+    const bottlesForThisType = allBottleData[finalNewBottleType] || {};
+    const plan = planAddLiquorBottle(bottlesForThisType, trimmedNewBottleName);
+    if (!plan.ok) {
+      setError(plan.reason === 'duplicate'
+        ? `Error: La botella "${trimmedNewBottleName}" ya existe como "${plan.duplicate.bottle?.label || plan.duplicate.key}" bajo el tipo "${finalNewBottleType}". Por favor use un nombre único o edite la existente.`
+        : 'El nombre de la botella resulta en una clave inválida. Use caracteres alfanuméricos y espacios.');
+      return;
     }
 
     const newBottleData = {
@@ -80,25 +84,17 @@ export default function LiquorInventoryCalculator() {
       fullWeight: parseInt(newBottleFullWeight, 10),
     };
 
-    setAllBottleData(prevData => {
-      const bottlesForThisType = prevData[finalNewBottleType] ? { ...prevData[finalNewBottleType] } : {};
+    const newData = {
+      ...allBottleData,
+      [finalNewBottleType]: {
+        ...bottlesForThisType,
+        [plan.key]: newBottleData,
+      },
+    };
+    setAllBottleData(newData);
+    localStorage.setItem('allBottleData', JSON.stringify(newData));
 
-      if (bottlesForThisType[newBottleKey]) {
-        setError(`Error: La botella "${trimmedNewBottleName}" ya existe como "${newBottleKey}" bajo el tipo "${finalNewBottleType}". Por favor use un nombre único o edite la existente.`);
-        return prevData; // Return previous state to avoid change if key exists
-      }
-
-      bottlesForThisType[newBottleKey] = newBottleData;
-
-      const newData = {
-        ...prevData,
-        [finalNewBottleType]: bottlesForThisType,
-      };
-      localStorage.setItem('allBottleData', JSON.stringify(newData));
-      return newData;
-    });
-
-    // Reset form fields and hide form
+    // Reset form fields and hide form only after the bottle is actually saved.
     setNewBottleType('');
     setCustomNewBottleType('');
     setNewBottleName('');

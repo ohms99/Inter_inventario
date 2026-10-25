@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Beer, CheckCircle2, Trash2, PlayCircle, StopCircle, Download, PlusCircle, PackagePlus, PackageMinus, PackageSearch, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { planAddBeer } from './catalogIdentity';
 
 const INITIAL_BEER_CATALOG = {
   'miller_high_life_media': { label: 'Miller High Life', category: 'Media' },
@@ -121,16 +122,15 @@ export default function BeerTracker() {
       setError("Beer name and category are required.");
       return;
     }
-    const labelSlug = newBeerLabel.trim().toLowerCase().replace(/\s+/g, '-');
-    const categorySlug = newBeerCategory.trim().toLowerCase().replace(/\s+/g, '-');
-    const beerKey = `${labelSlug}_${categorySlug}`;
-
-    if (beerCatalog[beerKey]) {
-      setError("This beer with this size/category already exists in the catalog.");
+    const plan = planAddBeer(beerCatalog, newBeerLabel, newBeerCategory);
+    if (!plan.ok) {
+      setError(plan.reason === 'duplicate'
+        ? "This beer with this size/category already exists in the catalog."
+        : "Beer name and category are required.");
       return;
     }
     const newCatalogEntry = { label: newBeerLabel.trim(), category: newBeerCategory.trim() };
-    const updatedCatalog = { ...beerCatalog, [beerKey]: newCatalogEntry };
+    const updatedCatalog = { ...beerCatalog, [plan.key]: newCatalogEntry };
     setBeerCatalog(updatedCatalog);
     localStorage.setItem('beerCatalog', JSON.stringify(updatedCatalog));
     
