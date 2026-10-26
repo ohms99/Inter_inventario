@@ -3,19 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cartesia
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ShoppingCart, TrendingDown, HelpCircle, Beer } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
-
-// Initial bottle data - needed if allBottleData isn't in localStorage or for reference
-const initialBottleDataReference = {
-  tequila: {
-    herradura: { label: 'Herradura', volume: 750, emptyWeight: 500, fullWeight: 1092 },
-    patron: { label: 'Patrón', volume: 750, emptyWeight: 480, fullWeight: 1072 },
-  },
-  whiskey: {
-    // Ensure this matches the main app's data, especially escaped characters
-    jackdaniels: { label: 'Jack Daniel\'s', volume: 1000, emptyWeight: 700, fullWeight: 1489 },
-    jameson: { label: 'Jameson', volume: 750, emptyWeight: 510, fullWeight: 1102 },
-  },
-};
+import { bottleOzSeries, bottlesInHistory } from './bottleHistoryChart';
 
 // Initial Beer Catalog - for reference and fallback
 const initialBeerCatalogReference = {
@@ -29,7 +17,6 @@ const initialBeerCatalogReference = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [inventoryHistory, setInventoryHistory] = useState([]);
-  const [allBottleData, setAllBottleData] = useState(initialBottleDataReference);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [purchasePredictions, setPurchasePredictions] = useState([]);
 
@@ -40,7 +27,7 @@ export default function Dashboard() {
 
   // State for item-specific graph
   const [selectedLiquorTypeForGraph, setSelectedLiquorTypeForGraph] = useState('');
-  const [selectedBottleKeyForGraph, setSelectedBottleKeyForGraph] = useState('');
+  const [selectedBottleNameForGraph, setSelectedBottleNameForGraph] = useState('');
   const [selectedBottleGraphData, setSelectedBottleGraphData] = useState([]);
 
   // Define low stock thresholds (can be made configurable later)
@@ -51,16 +38,6 @@ export default function Dashboard() {
     const savedHistory = localStorage.getItem('inventoryHistory');
     if (savedHistory) {
       setInventoryHistory(JSON.parse(savedHistory));
-    }
-
-    const savedBottleData = localStorage.getItem('allBottleData');
-    if (savedBottleData) {
-      try {
-        setAllBottleData(JSON.parse(savedBottleData));
-      } catch (e) {
-        console.error("Error parsing allBottleData from localStorage on Dashboard:", e);
-        setAllBottleData(initialBottleDataReference); 
-      }
     }
 
     // Load Beer Inventory History
@@ -123,7 +100,7 @@ export default function Dashboard() {
     } else {
       setLowStockItems([]);
     }
-  }, [inventoryHistory, allBottleData]); // allBottleData might be needed if we cross-reference for more details later
+  }, [inventoryHistory]);
 
   // useEffect for Purchase Predictions
   useEffect(() => {
@@ -297,51 +274,14 @@ export default function Dashboard() {
     setBeerPurchasePredictions(beerPredictions);
   }, [beerInventoryHistory]);
 
+  const historyBottles = bottlesInHistory(inventoryHistory);
+
   // useEffect for Item-Specific Graph Data
   useEffect(() => {
-    if (selectedLiquorTypeForGraph && selectedBottleKeyForGraph && allBottleData[selectedLiquorTypeForGraph] && allBottleData[selectedLiquorTypeForGraph][selectedBottleKeyForGraph]) {
-      const bottleLabel = allBottleData[selectedLiquorTypeForGraph][selectedBottleKeyForGraph].label;
-      // The key in session.items is constructed as `${item.type}_${item.name}`.
-      // However, the `endInventory` function in Tracker.jsx uses `item.name` directly as part of the key: `const key = `${item.type}_${item.name}`;`
-      // Let's assume item.name is the label for consistency.
-      const itemKeyToFind = `${selectedLiquorTypeForGraph}_${bottleLabel}`;
-
-      const graphData = [];
-      inventoryHistory.forEach(session => {
-        if (session.items && session.items[itemKeyToFind]) {
-          const itemData = session.items[itemKeyToFind];
-          graphData.push({
-            date: new Date(session.endDate).toLocaleDateString(), // Format date for X-axis
-            oz: parseFloat(itemData.remainingFlOz), // Ensure it's a number
-            // percentage: parseFloat(itemData.percentage) // Could also graph percentage
-          });
-        }
-      });
-
-      // Sort by date to ensure the line chart connects points chronologically
-      // The dates are already strings like "MM/DD/YYYY", direct string sort might not be robust.
-      // Better to sort by original ISO date if possible before converting to toLocaleDateString.
-      // For now, we sort after formatting, which might be okay for MM/DD/YYYY format if year changes correctly.
-      // A more robust sort would be on the original ISO date string or Date object.
-      // Let's assume toLocaleDateString() gives a sortable format or history is mostly chronological.
-      // To make it robust, we should sort based on the actual date objects:
-      const sortedGraphData = inventoryHistory
-        .filter(session => session.items && session.items[itemKeyToFind])
-        .map(session => ({
-            originalDate: parseISO(session.endDate),
-            oz: parseFloat(session.items[itemKeyToFind].remainingFlOz),
-        }))
-        .sort((a, b) => a.originalDate - b.originalDate) // Sort by actual Date objects
-        .map(data => ({
-            date: data.originalDate.toLocaleDateString(), // Then format for display
-            oz: data.oz,
-        }));
-      
-      setSelectedBottleGraphData(sortedGraphData);
-    } else {
-      setSelectedBottleGraphData([]); // Clear data if selection is incomplete
-    }
-  }, [selectedLiquorTypeForGraph, selectedBottleKeyForGraph, inventoryHistory, allBottleData]);
+    setSelectedBottleGraphData(
+      bottleOzSeries(inventoryHistory, selectedLiquorTypeForGraph, selectedBottleNameForGraph)
+    );
+  }, [selectedLiquorTypeForGraph, selectedBottleNameForGraph, inventoryHistory]);
 
   // Prepare data for charts
   const sessionTrends = inventoryHistory.map(session => {
@@ -500,47 +440,46 @@ export default function Dashboard() {
             value={selectedLiquorTypeForGraph}
             onChange={(e) => {
               setSelectedLiquorTypeForGraph(e.target.value);
-              setSelectedBottleKeyForGraph(''); // Reset bottle selection
-              setSelectedBottleGraphData([]); // Clear graph data
+              setSelectedBottleNameForGraph('');
+              setSelectedBottleGraphData([]);
             }}
             className="border rounded px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Selecciona Tipo de Licor</option>
-            {Object.keys(allBottleData).map(type => (
+            {Object.keys(historyBottles).map(type => (
               <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
             ))}
           </select>
 
           <select
-            value={selectedBottleKeyForGraph}
-            onChange={(e) => setSelectedBottleKeyForGraph(e.target.value)}
+            value={selectedBottleNameForGraph}
+            onChange={(e) => setSelectedBottleNameForGraph(e.target.value)}
             disabled={!selectedLiquorTypeForGraph}
             className="border rounded px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
           >
             <option value="">Selecciona Botella</option>
-            {selectedLiquorTypeForGraph && allBottleData[selectedLiquorTypeForGraph] &&
-              Object.keys(allBottleData[selectedLiquorTypeForGraph]).map(bottleKey => (
-                <option key={bottleKey} value={bottleKey}>
-                  {allBottleData[selectedLiquorTypeForGraph][bottleKey].label}
-                </option>
-              ))}
+            {(historyBottles[selectedLiquorTypeForGraph] || []).map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
           </select>
         </div>
 
         {/* Graph will go here */}
-        {selectedBottleKeyForGraph && selectedBottleGraphData.length > 0 ? (
+        {selectedBottleNameForGraph && selectedBottleGraphData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={selectedBottleGraphData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis label={{ value: 'Oz Restantes', angle: -90, position: 'insideLeft' }}/>
-              <Tooltip formatter={(value) => [`${value.toFixed(2)} oz`, 'Restante']}/>
+              <Tooltip formatter={(value) => [`${typeof value === 'number' ? value.toFixed(2) : value} oz`, 'Restante']}/>
               <Legend verticalAlign="top" />
-              <Line type="monotone" dataKey="oz" stroke="#818cf8" name={allBottleData[selectedLiquorTypeForGraph]?.[selectedBottleKeyForGraph]?.label || 'Botella'} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }}/>
+              <Line type="monotone" dataKey="oz" stroke="#818cf8" name={selectedBottleNameForGraph || 'Botella'} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }}/>
             </LineChart>
           </ResponsiveContainer>
-        ) : selectedBottleKeyForGraph ? (
+        ) : selectedBottleNameForGraph ? (
           <p className="text-gray-500 text-center py-10">No hay datos históricos para la botella seleccionada.</p>
+        ) : Object.keys(historyBottles).length === 0 ? (
+          <p className="text-gray-500 text-center py-10">No hay inventarios de licores para graficar.</p>
         ) : (
           <p className="text-gray-500 text-center py-10">Por favor, selecciona un tipo de licor y una botella para ver su historial.</p>
         )}
