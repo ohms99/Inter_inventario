@@ -3,6 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cartesia
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ShoppingCart, TrendingDown, HelpCircle, Beer } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
+import { averageRemainingPercent, latestCountedSession } from './liquorSessions';
 
 // Initial bottle data - needed if allBottleData isn't in localStorage or for reference
 const initialBottleDataReference = {
@@ -97,11 +98,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (inventoryHistory.length > 0) {
-      const latestSession = inventoryHistory[inventoryHistory.length - 1];
+    const latestSession = latestCountedSession(inventoryHistory);
+    if (latestSession) {
       const currentLowStock = [];
 
-      if (latestSession && latestSession.items) {
+      if (latestSession.items) {
         Object.values(latestSession.items).forEach(item => {
           // The item key in session.items is type_name. We might need allBottleData for more details if not all are in item.
           // For now, assuming item has 'servings' and 'percentage'.
@@ -344,17 +345,15 @@ export default function Dashboard() {
   }, [selectedLiquorTypeForGraph, selectedBottleKeyForGraph, inventoryHistory, allBottleData]);
 
   // Prepare data for charts
-  const sessionTrends = inventoryHistory.map(session => {
+  const sessionTrends = inventoryHistory.flatMap(session => {
+    const avgPercentage = averageRemainingPercent(session);
+    if (avgPercentage === null || !session.items) return [];
     const totalServings = Object.values(session.items).reduce((acc, item) => acc + item.servings, 0);
-    const avgPercent = (
-      Object.values(session.items).reduce((acc, item) => acc + parseFloat(item.percentage), 0) /
-      Object.values(session.items).length
-    ).toFixed(1);
-    return {
+    return [{
       date: new Date(session.endDate).toLocaleDateString(),
       servings: totalServings,
-      avgPercentage: parseFloat(avgPercent),
-    };
+      avgPercentage,
+    }];
   });
 
   // Type-level breakdown

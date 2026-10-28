@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { canSaveLiquorInventory, previousCountedSession } from './liquorSessions';
 
 const bottleData = {
   tequila: {
@@ -212,9 +213,19 @@ export default function LiquorInventoryCalculator() {
     setInventoryList([]);
     setStartDate(new Date().toISOString());
     setTracking(true);
+    setError('');
   };
 
   const endInventory = () => {
+    if (!canSaveLiquorInventory(inventoryList)) {
+      setError('No hay botellas en este inventario. No se guardó la sesión.');
+      setTracking(false);
+      setStartDate(null);
+      setPreview(null);
+      return;
+    }
+
+    setError('');
     const endDate = new Date().toISOString();
     const newSession = {
       startDate,
@@ -374,6 +385,10 @@ export default function LiquorInventoryCalculator() {
           {showNewBottleForm ? 'Cancelar' : 'Agregar Nueva Botella'}
         </button>
       </div>
+
+      {!tracking && !showNewBottleForm && error && (
+        <p className="text-red-500 text-center mb-4 text-sm font-medium">{error}</p>
+      )}
 
       {/* New Bottle Form */}
       {showNewBottleForm && (
@@ -591,8 +606,8 @@ export default function LiquorInventoryCalculator() {
                           {Object.entries(session.items).map(([itemKey, item], i) => {
                             let cambioOz = "N/A";
                             let cambioG = "N/A";
-                            if (index > 0) { // Ensure there is a previous session to compare against
-                              const previousSession = inventoryHistory[index - 1];
+                            const previousSession = previousCountedSession(inventoryHistory, index);
+                            if (previousSession) {
                               const previousItem = previousSession.items[itemKey];
                               if (previousItem) {
                                 const ozChange = parseFloat(previousItem.remainingFlOz) - parseFloat(item.remainingFlOz);
