@@ -3,6 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cartesia
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ShoppingCart, TrendingDown, HelpCircle, Beer } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
+import { anchorSeriesToLatestSnapshot, realSnapshotDates } from './stockSeries';
 
 // Initial bottle data - needed if allBottleData isn't in localStorage or for reference
 const initialBottleDataReference = {
@@ -152,9 +153,11 @@ export default function Dashboard() {
       });
     });
 
+    const { latest: latestSnapshot, previous: previousSnapshot } = realSnapshotDates(inventoryHistory);
     const predictions = [];
     for (const itemKey in itemHistories) {
-      const history = itemHistories[itemKey].sort((a, b) => a.date - b.date);
+      // Missing from the latest count means it is gone. The last positive count is not still on the shelf.
+      const history = anchorSeriesToLatestSnapshot(itemHistories[itemKey], latestSnapshot, previousSnapshot);
       if (history.length < 2) continue; // Need at least two points for a rate
 
       let totalOzConsumed = 0;
@@ -240,9 +243,10 @@ export default function Dashboard() {
       });
     });
 
+    const { latest: latestBeerSnapshot, previous: previousBeerSnapshot } = realSnapshotDates(beerInventoryHistory);
     const beerPredictions = [];
     for (const itemKey in beerItemHistories) {
-      const history = beerItemHistories[itemKey].sort((a, b) => a.date - b.date);
+      const history = anchorSeriesToLatestSnapshot(beerItemHistories[itemKey], latestBeerSnapshot, previousBeerSnapshot);
       if (history.length < 2) continue;
 
       let totalUnitsConsumed = 0;
