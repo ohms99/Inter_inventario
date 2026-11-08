@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { isCurrentLiquorPreview } from './liquorPreview';
 
 const bottleData = {
   tequila: {
@@ -285,11 +286,16 @@ export default function LiquorInventoryCalculator() {
   };
 
   const addToInventory = () => {
-    if (preview) {
-      setInventoryList([...inventoryList, { ...preview }]);
+    if (!isCurrentLiquorPreview(preview, { weight: currentWeight, type: liquorType, label: bottle.label })) {
       setPreview(null);
-      setCurrentWeight('');
+      setError('La botella o el peso cambiaron. Calcule de nuevo antes de agregar.');
+      return;
     }
+
+    setInventoryList([...inventoryList, { ...preview }]);
+    setPreview(null);
+    setCurrentWeight('');
+    setError('');
   };
 
   const removeFromInventory = (indexToRemove) => {
@@ -447,14 +453,14 @@ export default function LiquorInventoryCalculator() {
         <>
           <div className="bg-gray-50 p-4 rounded-md shadow-sm mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select value={liquorType} onChange={(e) => { setLiquorType(e.target.value); setBottleKey(''); }} className="border rounded px-3 py-2">
+              <select value={liquorType} onChange={(e) => { setLiquorType(e.target.value); setBottleKey(''); setPreview(null); }} className="border rounded px-3 py-2">
                 <option value="">Selecciona Tipo</option>
                 {Object.keys(allBottleData).map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
 
-              <select value={bottleKey} onChange={(e) => setBottleKey(e.target.value)} className="border rounded px-3 py-2">
+              <select value={bottleKey} onChange={(e) => { setBottleKey(e.target.value); setPreview(null); }} className="border rounded px-3 py-2">
                 <option value="">Selecciona Botella</option>
                 {liquorType && allBottleData[liquorType] && Object.keys(allBottleData[liquorType]).map(key => {
                   const bottleDetails = allBottleData[liquorType][key];
@@ -470,7 +476,7 @@ export default function LiquorInventoryCalculator() {
                 type="number"
                 placeholder="Peso Actual (g)"
                 value={currentWeight}
-                onChange={(e) => setCurrentWeight(e.target.value)}
+                onChange={(e) => { setCurrentWeight(e.target.value); setPreview(null); }}
                 className="border rounded px-3 py-2"
               />
             </div>
@@ -490,6 +496,7 @@ export default function LiquorInventoryCalculator() {
                 <p><strong>% Restante:</strong> {preview.percentage}%</p>
                 <p><strong>Oz Restante:</strong> {preview.remainingFlOz} oz</p>
                 <p><strong>Bebidas:</strong> {preview.servings}</p>
+                <p><strong>Peso Actual:</strong> {preview.currentWeight_g} g</p>
                 <button onClick={addToInventory} className="mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded flex items-center gap-2 mx-auto">
                   <CheckCircle2 className="w-5 h-5" /> Confirmar y Agregar
                 </button>
