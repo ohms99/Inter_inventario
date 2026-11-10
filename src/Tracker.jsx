@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, CheckCircle2, PercentCircle, Trash2, PlayCircle, StopCircle, Download, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getLiquorBottleDefinitions } from './apiService'; // Import the new API function
+import { rowsToCsv } from './csv';
 
 const bottleData = {
   tequila: {
@@ -312,7 +313,7 @@ export default function LiquorInventoryCalculator() {
         ]);
       });
     });
-    const csvContent = rows.map(r => r.join(',')).join('\n');
+    const csvContent = rowsToCsv(rows);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
