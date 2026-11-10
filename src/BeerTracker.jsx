@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Beer, CheckCircle2, Trash2, PlayCircle, StopCircle, Download, PlusCircle, PackagePlus, PackageMinus, PackageSearch, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { rowsToCsv } from './csv';
 
 const INITIAL_BEER_CATALOG = {
   'miller_high_life_media': { label: 'Miller High Life', category: 'Media' },
@@ -183,7 +184,7 @@ export default function BeerTracker() {
         ]);
       });
     });
-    const csvContent = rows.map(e => e.join(",")).join("\n");
+    const csvContent = rowsToCsv(rows);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
